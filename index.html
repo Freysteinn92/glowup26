@@ -20,19 +20,18 @@
 
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-        /* Error Box Style */
-        #error-box { display: none; padding: 20px; background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; margin: 20px; border-radius: 8px; font-family: monospace; }
+        /* Error Box Style - High Z-Index to ensure visibility */
+        #error-box { display: none; position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: #fee2e2; color: #991b1b; border-bottom: 4px solid #ef4444; font-family: monospace; z-index: 9999; }
     </style>
 
     <!-- CRITICAL FIX: Polyfill for process.env -->
     <script>
         window.process = { env: { NODE_ENV: 'production' } };
         
-        // Global Error Handler to catch the "White Screen" cause
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             const errorBox = document.getElementById('error-box');
             errorBox.style.display = 'block';
-            errorBox.innerHTML = `<strong>App Crash:</strong><br>${msg}<br><br><small>${url}:${lineNo}</small>`;
+            errorBox.innerHTML = `<strong>Global Crash:</strong><br>${msg}<br><small>${url}:${lineNo}</small>`;
             return false;
         };
     </script>
@@ -44,34 +43,35 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
+        // 1. Load React and DOM
         import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         
-        // Using a slightly more robust build for Lucide
+        // 2. Load Libraries with EXTERNAL flags (Prevents the crash)
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
-          Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff 
-        } from 'https://esm.sh/lucide-react@0.263.1?bundle';
+          Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff, AlertTriangle
+        } from 'https://esm.sh/lucide-react@0.330.0?external=react';
         
         import { 
           LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
           ResponsiveContainer, ReferenceLine, Legend 
-        } from 'https://esm.sh/recharts@2.7.2?bundle';
+        } from 'https://esm.sh/recharts@2.12.0?external=react,react-dom';
 
-        // Firebase Imports
+        // 3. Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // *** PASTE YOUR FIREBASE CONFIG HERE ***
         const firebaseConfig = {
-          apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
-authDomain: "glowup-2026.firebaseapp.com",
-projectId: "glowup-2026",
-storageBucket: "glowup-2026.firebasestorage.app",
-messagingSenderId: "801406542480",
-appId: "1:801406542480:web:a4f92ffba5ee3c6e18ae15",
-measurementId: "G-ELR1FNN9VG"
+            apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
+            authDomain: "glowup-2026.firebaseapp.com",
+            projectId: "glowup-2026",
+            storageBucket: "glowup-2026.firebasestorage.app",
+            messagingSenderId: "801406542480",
+            appId: "1:801406542480:web:a4f92ffba5ee3c6e18ae15",
+            measurementId: "G-ELR1FNN9VG"
         };
 
         // Initialize Firebase
@@ -127,6 +127,36 @@ measurementId: "G-ELR1FNN9VG"
           </div>
         );
 
+        // --- Error Boundary Component ---
+        class ErrorBoundary extends React.Component {
+          constructor(props) {
+            super(props);
+            this.state = { hasError: false, error: null };
+          }
+
+          static getDerivedStateFromError(error) {
+            return { hasError: true, error };
+          }
+
+          render() {
+            if (this.state.hasError) {
+              return (
+                <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
+                  <AlertTriangle size={48} className="text-red-500 mb-4" />
+                  <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
+                  <pre className="text-xs bg-black/50 p-4 rounded text-left overflow-auto max-w-full">
+                    {this.state.error.toString()}
+                  </pre>
+                  <button onClick={() => window.location.reload()} className="mt-8 bg-blue-600 px-6 py-2 rounded-lg">
+                    Reload App
+                  </button>
+                </div>
+              );
+            }
+            return this.props.children; 
+          }
+        }
+
         // --- Main Application ---
 
         function CompetitionApp() {
@@ -164,7 +194,6 @@ measurementId: "G-ELR1FNN9VG"
             initAuth();
             const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
               setUser(currentUser);
-              // Do NOT turn off loading here, wait for data sync
             });
             return () => unsubscribe();
           }, []);
@@ -176,7 +205,7 @@ measurementId: "G-ELR1FNN9VG"
             const docRef = doc(db, 'competition_data', 'shared_state');
 
             const unsubscribe = onSnapshot(docRef, (docSnap) => {
-              setLoading(false); // NOW we turn off loading
+              setLoading(false); 
               if (docSnap.exists()) {
                 const data = docSnap.data();
                 if(data.startDate) setStartDate(data.startDate);
@@ -189,7 +218,6 @@ measurementId: "G-ELR1FNN9VG"
                 if(data.anniWeights) setAnniWeights(data.anniWeights);
                 setSyncStatus('synced');
               } else {
-                // Initialize default data
                 const defaultData = {
                   startDate: '2026-02-18',
                   endDate: '2026-04-30',
@@ -429,7 +457,6 @@ measurementId: "G-ELR1FNN9VG"
                 {activeTab === 'history' && (
                    <div className="space-y-6">
                       <div className="text-center text-slate-500">History Log</div>
-                      {/* Simplified history to save rendering power on mobile */}
                       <Card className="p-4">
                          <h3 className="font-bold text-blue-600 mb-2">Freysi History</h3>
                          <div className="max-h-60 overflow-y-auto divide-y">
@@ -470,12 +497,21 @@ measurementId: "G-ELR1FNN9VG"
                   <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'settings' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><Settings size={24} /><span className="text-xs mt-1">Settings</span></button>
                 </div>
               </div>
+              
+              {/* DEBUG FOOTER */}
+              <div className="fixed bottom-20 left-0 right-0 text-center text-[10px] text-slate-500 opacity-50 pointer-events-none">
+                 Debug: Loaded={!loading ? 'Yes' : 'No'} | User={user ? 'Auth' : 'No'} | Weights={userWeights.length}/{anniWeights.length}
+              </div>
             </div>
           );
         }
 
         const root = createRoot(document.getElementById('root'));
-        root.render(<CompetitionApp />);
+        root.render(
+          <ErrorBoundary>
+            <CompetitionApp />
+          </ErrorBoundary>
+        );
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
