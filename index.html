@@ -392,7 +392,12 @@
         const root = createRoot(document.getElementById('root'));
         root.render(<ErrorBoundary><CompetitionApp /></ErrorBoundary>);
         
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
+        // SAFE SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW fail: ', e));
+            });
+        }
     </script>
 </body>
 </html>
