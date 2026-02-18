@@ -16,19 +16,24 @@
 
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-        /* Debug Console Styles */
+        
+        /* NUCLEAR DEBUG CONSOLE - Visible on top */
         #debug-console { 
             display: block; 
-            background: #000; 
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: rgba(0,0,0,0.9); 
             color: #0f0; 
             font-family: monospace; 
             font-size: 10px; 
-            padding: 10px; 
-            margin-top: 20px;
-            white-space: pre-wrap; 
-            word-wrap: break-word;
-            border-top: 2px solid #333;
-            min-height: 100px;
+            padding: 8px; 
+            overflow-y: auto;
+            z-index: 99999;
+            border-top: 1px solid #444;
+            pointer-events: none;
         }
     </style>
 
@@ -47,51 +52,48 @@
         // 1. Polyfill process.env
         window.process = { env: { NODE_ENV: 'production' } };
 
-        // 2. ON-SCREEN LOGGER (So we can see errors on the phone)
+        // 2. ON-SCREEN LOGGER
         window.logToScreen = function(message, type = 'log') {
             const consoleDiv = document.getElementById('debug-console');
             if (consoleDiv) {
                 const line = document.createElement('div');
-                line.style.color = type === 'error' ? '#ff5555' : '#00ff00';
-                line.style.marginBottom = '4px';
-                line.style.borderBottom = '1px solid #333';
-                line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                line.style.color = type === 'error' ? '#ff5555' : '#88ff88';
+                line.style.borderBottom = '1px solid #222';
+                line.textContent = `> ${message}`;
                 consoleDiv.appendChild(line);
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
             }
         };
 
-        // Capture Global Errors
         window.onerror = function(msg, url, lineNo, columnNo, error) {
-            window.logToScreen(`CRITICAL: ${msg} (${url}:${lineNo})`, 'error');
+            window.logToScreen(`CRITICAL: ${msg} (${lineNo})`, 'error');
             return false;
         };
 
-        // Capture Promise Errors (Async)
         window.addEventListener('unhandledrejection', function(event) {
-            window.logToScreen(`UNHANDLED PROMISE: ${event.reason}`, 'error');
+            window.logToScreen(`PROMISE: ${event.reason}`, 'error');
         });
 
-        // Redirect console.log/error to screen
+        // Redirect console
         const oldLog = console.log;
         const oldError = console.error;
         console.log = function(...args) { oldLog(...args); window.logToScreen(args.join(' ')); };
         console.error = function(...args) { oldError(...args); window.logToScreen(args.join(' '), 'error'); };
     </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-40">
     
     <div id="root"></div>
     
-    <!-- The Debug Console Area -->
     <div id="debug-console">
-        <div>System Init... v2.1</div>
+        <div>System Booting v2.0...</div>
     </div>
 
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
         
-        console.log("React Imports Loaded.");
+        console.log("React Ready.");
 
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
@@ -103,13 +105,11 @@
           ResponsiveContainer, ReferenceLine, Legend 
         } from 'recharts';
 
-        console.log("UI Libraries Loaded.");
+        console.log("Modules Ready.");
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        console.log("Firebase Libraries Loaded.");
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
@@ -157,8 +157,8 @@
           static getDerivedStateFromError(error) { return { hasError: true, error }; }
           render() {
             if (this.state.hasError) {
-              console.error("React Error Boundary Caught:", this.state.error);
-              return <div className="p-4 text-red-500">React Crash: {this.state.error.toString()}</div>;
+              console.error("UI Crash:", this.state.error);
+              return <div className="p-8 text-white bg-red-900"><h1>UI CRASHED</h1><p>{this.state.error.message}</p></div>;
             }
             return this.props.children; 
           }
@@ -166,7 +166,7 @@
 
         // --- Main App ---
         function CompetitionApp() {
-          console.log("Rendering App Component...");
+          console.log("App Rendering...");
           const [activeTab, setActiveTab] = useState('dashboard');
           const [user, setUser] = useState(null);
           const [loading, setLoading] = useState(true);
@@ -186,23 +186,18 @@
           const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
           useEffect(() => {
-            console.log("Starting Auth...");
-            signInAnonymously(auth)
-                .then(() => console.log("Auth Success"))
-                .catch(err => console.error("Auth Fail", err));
-                
+            signInAnonymously(auth).catch(err => console.error("Auth Fail", err));
             return onAuthStateChanged(auth, u => {
-                console.log("Auth State Changed:", u ? "Logged In" : "Logged Out");
+                if(u) console.log("User Logged In");
                 setUser(u);
             });
           }, []);
 
           useEffect(() => {
             if (!user) return;
-            console.log("Starting Sync...");
             const docRef = doc(db, 'competition_data', 'shared_state');
             const unsubscribe = onSnapshot(docRef, (docSnap) => {
-              console.log("Snapshot Received. Exists:", docSnap.exists());
+              console.log("DB Update Recv");
               setLoading(false);
               if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -221,8 +216,9 @@
                   userStartWeight: 70.8, userGoalGain: 4.0, userWeights: [{ date: '2026-02-18', weight: 70.8 }],
                   anniStartWeight: 73.0, anniGoalLoss: 6.0, anniWeights: [{ date: '2026-02-18', weight: 73.0 }]
                 });
+                setLoading(false);
               }
-            }, (err) => { console.error("Sync Error", err); setSyncStatus('error'); setLoading(false); });
+            }, (err) => { console.error("Sync Err", err); setSyncStatus('error'); setLoading(false); });
             return () => unsubscribe();
           }, [user]);
 
@@ -233,6 +229,7 @@
             setSyncStatus('synced');
           };
 
+          // Calculations
           const currentUserWeight = userWeights.length > 0 ? userWeights[userWeights.length - 1].weight : userStartWeight;
           const currentAnniWeight = anniWeights.length > 0 ? anniWeights[anniWeights.length - 1].weight : anniStartWeight;
           const userGain = currentUserWeight - userStartWeight;
@@ -307,15 +304,13 @@
             </div>
           );
 
-          console.log("Rendering Dashboard. Loading:", loading);
-
           return (
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-24">
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-40">
               <div className="max-w-4xl mx-auto space-y-6">
                 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">GlowUp 2026</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">GlowUp 2026 <span className="text-xs text-slate-400 border px-1 rounded">v2.0</span></h1>
                     <div className="flex items-center gap-3 mt-1">
                         <p className="text-slate-500 dark:text-slate-400 text-sm">{daysLeft} days left</p>
                         {syncStatus === 'synced' ? <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Live</span> : <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Syncing...</span>}
@@ -398,7 +393,7 @@
               </div>
 
               {/* Mobile Nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 z-50 md:hidden flex justify-around">
+              <div className="fixed bottom-[130px] left-0 right-0 bg-white border-t p-2 z-50 md:hidden flex justify-around">
                   {['dashboard', 'history', 'rewards', 'settings'].map(t => (
                       <button key={t} onClick={() => setActiveTab(t)} className={`p-2 capitalize ${activeTab === t ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{t}</button>
                   ))}
@@ -410,17 +405,22 @@
         const root = createRoot(document.getElementById('root'));
         root.render(<ErrorBoundary><CompetitionApp /></ErrorBoundary>);
         
-        // --- SAFE SERVICE WORKER REGISTRATION (Prevents the crash) ---
-        // We check if we are on a valid http/https page first.
+        // SAFE REGISTRATION
         if ('serviceWorker' in navigator) {
-            if (window.location.protocol.startsWith('http')) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('./sw.js')
-                        .then(reg => console.log("SW Registered", reg))
-                        .catch(e => console.error("SW Failed", e));
-                });
+            // Fix: Check for http/https to avoid invalid protocol error in preview
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                try {
+                    navigator.serviceWorker.register('./sw.js').then(reg => {
+                        console.log("SW Registered:", reg.scope);
+                        // Force update if one is waiting
+                        if(reg.waiting) {
+                            console.log("SW Waiting... Forcing Update");
+                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    }).catch(e => console.error("SW Fail:", e));
+                } catch(e) { console.log("SW Skipped in preview"); }
             } else {
-                console.log("Skipping SW registration (not http/https)");
+                console.log("SW Skipped (Protocol not supported)");
             }
         }
     </script>
