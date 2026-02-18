@@ -19,34 +19,53 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        /* Disable pull-to-refresh to feel more like an app */
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+        /* Error Box Style */
+        #error-box { display: none; padding: 20px; background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; margin: 20px; border-radius: 8px; font-family: monospace; }
     </style>
+
+    <!-- CRITICAL FIX: Polyfill for process.env -->
+    <script>
+        window.process = { env: { NODE_ENV: 'production' } };
+        
+        // Global Error Handler to catch the "White Screen" cause
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            const errorBox = document.getElementById('error-box');
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = `<strong>App Crash:</strong><br>${msg}<br><br><small>${url}:${lineNo}</small>`;
+            return false;
+        };
+    </script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    
+    <!-- The Error Container -->
+    <div id="error-box"></div>
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        
+        // Using a slightly more robust build for Lucide
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
           Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff 
-        } from 'https://esm.sh/lucide-react@0.263.1';
+        } from 'https://esm.sh/lucide-react@0.263.1?bundle';
+        
         import { 
           LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
           ResponsiveContainer, ReferenceLine, Legend 
-        } from 'https://esm.sh/recharts@2.7.2';
+        } from 'https://esm.sh/recharts@2.7.2?bundle';
 
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // *** PASTE YOUR FIREBASE CONFIG HERE ***
-        // You can get this from the Firebase Console -> Project Settings -> General
         const firebaseConfig = {
-            apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
+          apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
 authDomain: "glowup-2026.firebaseapp.com",
 projectId: "glowup-2026",
 storageBucket: "glowup-2026.firebasestorage.app",
@@ -54,8 +73,6 @@ messagingSenderId: "801406542480",
 appId: "1:801406542480:web:a4f92ffba5ee3c6e18ae15",
 measurementId: "G-ELR1FNN9VG"
         };
-        
-        const appId = 'glowup-2026'; 
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
@@ -122,22 +139,19 @@ measurementId: "G-ELR1FNN9VG"
           const [startDate, setStartDate] = useState('2026-02-18');
           const [endDate, setEndDate] = useState('2026-04-30');
           
-          // Freysi
           const [userStartWeight, setUserStartWeight] = useState(70.8);
           const [userGoalGain, setUserGoalGain] = useState(4.0);
           const [userWeights, setUserWeights] = useState([{ date: '2026-02-18', weight: 70.8 }]);
           
-          // Anni
           const [anniStartWeight, setAnniStartWeight] = useState(73.0);
           const [anniGoalLoss, setAnniGoalLoss] = useState(6.0);
           const [anniWeights, setAnniWeights] = useState([{ date: '2026-02-18', weight: 73.0 }]);
 
-          // Input State
           const [newWeightMe, setNewWeightMe] = useState('');
           const [newWeightAnni, setNewWeightAnni] = useState('');
           const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
-          // --- 1. Authentication ---
+          // Auth
           useEffect(() => {
             const initAuth = async () => {
               try {
@@ -148,34 +162,34 @@ measurementId: "G-ELR1FNN9VG"
               }
             };
             initAuth();
-            
             const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
               setUser(currentUser);
-              if (!currentUser) setLoading(false); 
+              // Do NOT turn off loading here, wait for data sync
             });
             return () => unsubscribe();
           }, []);
 
-          // --- 2. Data Sync (Firestore) ---
+          // Data Sync
           useEffect(() => {
             if (!user) return;
 
             const docRef = doc(db, 'competition_data', 'shared_state');
 
             const unsubscribe = onSnapshot(docRef, (docSnap) => {
-              setLoading(false);
+              setLoading(false); // NOW we turn off loading
               if (docSnap.exists()) {
                 const data = docSnap.data();
-                setStartDate(data.startDate || '2026-02-18');
-                setEndDate(data.endDate || '2026-04-30');
-                setUserStartWeight(data.userStartWeight || 70.8);
-                setUserGoalGain(data.userGoalGain || 4.0);
-                setUserWeights(data.userWeights || []);
-                setAnniStartWeight(data.anniStartWeight || 73.0);
-                setAnniGoalLoss(data.anniGoalLoss || 6.0);
-                setAnniWeights(data.anniWeights || []);
+                if(data.startDate) setStartDate(data.startDate);
+                if(data.endDate) setEndDate(data.endDate);
+                if(data.userStartWeight) setUserStartWeight(data.userStartWeight);
+                if(data.userGoalGain) setUserGoalGain(data.userGoalGain);
+                if(data.userWeights) setUserWeights(data.userWeights);
+                if(data.anniStartWeight) setAnniStartWeight(data.anniStartWeight);
+                if(data.anniGoalLoss) setAnniGoalLoss(data.anniGoalLoss);
+                if(data.anniWeights) setAnniWeights(data.anniWeights);
                 setSyncStatus('synced');
               } else {
+                // Initialize default data
                 const defaultData = {
                   startDate: '2026-02-18',
                   endDate: '2026-04-30',
@@ -187,16 +201,17 @@ measurementId: "G-ELR1FNN9VG"
                   anniWeights: [{ date: '2026-02-18', weight: 73.0 }]
                 };
                 setDoc(docRef, defaultData);
+                setLoading(false);
               }
             }, (error) => {
               console.error("Sync error:", error);
               setSyncStatus('error');
+              setLoading(false);
             });
 
             return () => unsubscribe();
           }, [user]);
 
-          // --- Helper to Update Firestore ---
           const updateRemoteData = async (updates) => {
             if (!user) return;
             setSyncStatus('connecting');
@@ -210,23 +225,32 @@ measurementId: "G-ELR1FNN9VG"
             }
           };
 
-          // --- Calculations ---
+          // Safe Calculations
           const currentUserWeight = userWeights.length > 0 ? userWeights[userWeights.length - 1].weight : userStartWeight;
           const currentAnniWeight = anniWeights.length > 0 ? anniWeights[anniWeights.length - 1].weight : anniStartWeight;
           const userGain = currentUserWeight - userStartWeight;
           const anniLoss = anniStartWeight - currentAnniWeight;
           const userProgressPercent = (userGain / userGoalGain) * 100;
           const anniProgressPercent = (anniLoss / anniGoalLoss) * 100;
-          const leader = userProgressPercent > anniProgressPercent ? 'Freysi' : anniProgressPercent > userProgressPercent ? 'Anni' : 'Tie';
+          
+          let leader = 'Tie';
+          if(userProgressPercent > anniProgressPercent) leader = 'Freysi';
+          if(anniProgressPercent > userProgressPercent) leader = 'Anni';
+          
           const leadAmount = Math.abs(userProgressPercent - anniProgressPercent).toFixed(1);
+          
           const daysLeft = useMemo(() => {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const today = new Date();
-            const remaining = end - today;
-            return Math.ceil(remaining / (1000 * 60 * 60 * 24));
+            try {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const today = new Date();
+                const remaining = end - today;
+                return Math.ceil(remaining / (1000 * 60 * 60 * 24));
+            } catch(e) { return 0; }
           }, [startDate, endDate]);
+
           const chartData = useMemo(() => {
+            if(!userWeights || !anniWeights) return [];
             const allDates = new Set([...userWeights.map(d => d.date), ...anniWeights.map(d => d.date)]);
             const sortedDates = Array.from(allDates).sort();
             let lastUserW = userStartWeight;
@@ -254,24 +278,18 @@ measurementId: "G-ELR1FNN9VG"
               if (!newWeightMe) return;
               const newEntry = { date, weight: parseFloat(newWeightMe) };
               const exists = userWeights.find(w => w.date === date);
-              let newWeights;
-              if (exists) {
-                newWeights = userWeights.map(w => w.date === date ? newEntry : w);
-              } else {
-                newWeights = [...userWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
-              }
+              let newWeights = exists 
+                 ? userWeights.map(w => w.date === date ? newEntry : w)
+                 : [...userWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
               updateRemoteData({ userWeights: newWeights });
               setNewWeightMe('');
             } else {
               if (!newWeightAnni) return;
               const newEntry = { date, weight: parseFloat(newWeightAnni) };
               const exists = anniWeights.find(w => w.date === date);
-              let newWeights;
-              if (exists) {
-                newWeights = anniWeights.map(w => w.date === date ? newEntry : w);
-              } else {
-                newWeights = [...anniWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
-              }
+              let newWeights = exists
+                 ? anniWeights.map(w => w.date === date ? newEntry : w)
+                 : [...anniWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
               updateRemoteData({ anniWeights: newWeights });
               setNewWeightAnni('');
             }
@@ -290,7 +308,7 @@ measurementId: "G-ELR1FNN9VG"
               updateRemoteData({ anniWeights: newWeights });
             }
           };
-
+          
           const saveSettings = () => {
             updateRemoteData({ startDate, endDate, userStartWeight, userGoalGain, anniStartWeight, anniGoalLoss });
           };
@@ -308,7 +326,6 @@ measurementId: "G-ELR1FNN9VG"
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-24">
               <div className="max-w-4xl mx-auto space-y-6">
                 
-                {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                   <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">
@@ -319,13 +336,9 @@ measurementId: "G-ELR1FNN9VG"
                         Competition ends April 30 • {daysLeft > 0 ? `${daysLeft} days left` : 'Competition Ended'}
                         </p>
                         {syncStatus === 'synced' ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                                <Wifi size={12} /> Live
-                            </span>
+                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full"><Wifi size={12} /> Live</span>
                         ) : (
-                            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
-                                <WifiOff size={12} /> Syncing...
-                            </span>
+                            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"><WifiOff size={12} /> Syncing...</span>
                         )}
                     </div>
                   </div>
@@ -337,9 +350,7 @@ measurementId: "G-ELR1FNN9VG"
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-rose-500" />
                       <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-lg">
-                            <Trophy size={24} />
-                          </div>
+                          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-lg"><Trophy size={24} /></div>
                           <div>
                             <div className="text-sm text-slate-500 uppercase tracking-wider font-semibold">Current Leader</div>
                             <div className="text-2xl font-bold flex items-center gap-2">
@@ -351,45 +362,21 @@ measurementId: "G-ELR1FNN9VG"
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 z-10">
-                          VS
-                        </div>
+                         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 z-10">VS</div>
                         <div className="space-y-4">
-                          <div className="flex justify-between items-baseline">
-                            <h3 className="font-bold text-lg text-blue-600 flex items-center gap-2">
-                              <TrendingUp size={20} /> Freysi (Bulk)
-                            </h3>
-                            <span className="text-2xl font-bold">{currentUserWeight} <span className="text-sm text-slate-500">kg</span></span>
-                          </div>
+                          <div className="flex justify-between items-baseline"><h3 className="font-bold text-lg text-blue-600 flex items-center gap-2"><TrendingUp size={20} /> Freysi (Bulk)</h3><span className="text-2xl font-bold">{currentUserWeight} <span className="text-sm text-slate-500">kg</span></span></div>
                           <ProgressBar value={userProgressPercent} colorClass="bg-blue-500" label={`Progress to +${userGoalGain}kg`} />
                         </div>
                         <div className="space-y-4">
-                          <div className="flex justify-between items-baseline">
-                            <h3 className="font-bold text-lg text-rose-500 flex items-center gap-2">
-                              <TrendingDown size={20} /> Anni (Cut)
-                            </h3>
-                            <span className="text-2xl font-bold">{currentAnniWeight} <span className="text-sm text-slate-500">kg</span></span>
-                          </div>
+                          <div className="flex justify-between items-baseline"><h3 className="font-bold text-lg text-rose-500 flex items-center gap-2"><TrendingDown size={20} /> Anni (Cut)</h3><span className="text-2xl font-bold">{currentAnniWeight} <span className="text-sm text-slate-500">kg</span></span></div>
                           <ProgressBar value={anniProgressPercent} colorClass="bg-rose-500" label={`Progress to -${anniGoalLoss}kg`} />
                         </div>
                       </div>
                     </Card>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="p-4">
-                        <h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Freysi</h4>
-                        <div className="flex gap-2">
-                          <Input type="number" placeholder="71.2" value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} />
-                          <Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe}><Plus size={18} /></Button>
-                        </div>
-                      </Card>
-                      <Card className="p-4">
-                        <h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Anni</h4>
-                        <div className="flex gap-2">
-                          <Input type="number" placeholder="72.5" value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} />
-                          <Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" disabled={!newWeightAnni}><Plus size={18} /></Button>
-                        </div>
-                      </Card>
+                      <Card className="p-4"><h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Freysi</h4><div className="flex gap-2"><Input type="number" placeholder="71.2" value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} /><Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe}><Plus size={18} /></Button></div></Card>
+                      <Card className="p-4"><h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Anni</h4><div className="flex gap-2"><Input type="number" placeholder="72.5" value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} /><Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" disabled={!newWeightAnni}><Plus size={18} /></Button></div></Card>
                     </div>
                      <div className="flex justify-center">
                         <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-lg text-sm text-slate-500">
@@ -400,10 +387,7 @@ measurementId: "G-ELR1FNN9VG"
                      </div>
 
                     <Card className="p-6 h-80">
-                      <h3 className="font-bold mb-4 flex items-center gap-2">
-                        <Target size={18} className="text-purple-500" />
-                        Competition Race (%)
-                      </h3>
+                      <h3 className="font-bold mb-4 flex items-center gap-2"><Target size={18} className="text-purple-500" />Competition Race (%)</h3>
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -422,82 +406,55 @@ measurementId: "G-ELR1FNN9VG"
 
                 {activeTab === 'rewards' && (
                   <div className="space-y-6">
-                     <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">What is at stake?</h2>
-                        <p className="text-slate-500">The winner decides the activity!</p>
-                     </div>
+                     <div className="text-center space-y-2"><h2 className="text-2xl font-bold">What is at stake?</h2><p className="text-slate-500">The winner decides the activity!</p></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card className={`p-6 border-2 transition-all relative overflow-hidden group ${leader === 'Freysi' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-4 ring-blue-500/10' : 'border-transparent opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`}>
                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Ticket size={120} /></div>
                            <div className="relative z-10">
-                              <div className="flex items-center gap-3 mb-4">
-                                 <div className="p-3 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-200 rounded-xl"><Ticket size={32} /></div>
-                                 {leader === 'Freysi' && <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">CURRENTLY WINNING</span>}
-                              </div>
+                              <div className="flex items-center gap-3 mb-4"><div className="p-3 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-200 rounded-xl"><Ticket size={32} /></div>{leader === 'Freysi' && <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">WINNING</span>}</div>
                               <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Man Utd Game</h3>
-                              <p className="text-slate-600 dark:text-slate-300">Trip to Old Trafford.</p>
-                              <div className="mt-6">
-                                 <div className="text-sm font-medium text-slate-500 mb-1">Status</div>
-                                 <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full">
-                                    <div className={`h-full rounded-full transition-all duration-1000 ${leader === 'Freysi' ? 'bg-blue-500 w-full' : 'w-0'}`} />
-                                 </div>
-                              </div>
                            </div>
                         </Card>
                         <Card className={`p-6 border-2 transition-all relative overflow-hidden group ${leader === 'Anni' ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 ring-4 ring-rose-500/10' : 'border-transparent opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`}>
                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Music size={120} /></div>
                            <div className="relative z-10">
-                              <div className="flex items-center gap-3 mb-4">
-                                 <div className="p-3 bg-rose-100 dark:bg-rose-800 text-rose-600 dark:text-rose-200 rounded-xl"><Music size={32} /></div>
-                                 {leader === 'Anni' && <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">CURRENTLY WINNING</span>}
-                              </div>
+                              <div className="flex items-center gap-3 mb-4"><div className="p-3 bg-rose-100 dark:bg-rose-800 text-rose-600 dark:text-rose-200 rounded-xl"><Music size={32} /></div>{leader === 'Anni' && <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">WINNING</span>}</div>
                               <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Dance Lessons</h3>
-                              <p className="text-slate-600 dark:text-slate-300">Signed up for a dance course.</p>
-                              <div className="mt-6">
-                                 <div className="text-sm font-medium text-slate-500 mb-1">Status</div>
-                                 <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full">
-                                    <div className={`h-full rounded-full transition-all duration-1000 ${leader === 'Anni' ? 'bg-rose-500 w-full' : 'w-0'}`} />
-                                 </div>
-                              </div>
                            </div>
                         </Card>
                      </div>
                   </div>
                 )}
-
+                
                 {activeTab === 'history' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="p-0 overflow-hidden">
-                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30"><h3 className="font-bold text-blue-700 dark:text-blue-300">Freysi's History</h3></div>
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto">
-                        {[...userWeights].reverse().map((entry, i) => (
-                          <div key={i} className="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-900">
-                            <span className="text-slate-500 font-mono text-sm">{entry.date}</span>
-                            <div className="flex items-center gap-4"><span className="font-bold">{entry.weight} kg</span><button onClick={() => deleteEntry('me', userWeights.length - 1 - i)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                    <Card className="p-0 overflow-hidden">
-                      <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-100 dark:border-rose-900/30"><h3 className="font-bold text-rose-700 dark:text-rose-300">Anni's History</h3></div>
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto">
-                        {[...anniWeights].reverse().map((entry, i) => (
-                          <div key={i} className="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-900">
-                            <span className="text-slate-500 font-mono text-sm">{entry.date}</span>
-                            <div className="flex items-center gap-4"><span className="font-bold">{entry.weight} kg</span><button onClick={() => deleteEntry('anni', anniWeights.length - 1 - i)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  </div>
+                   <div className="space-y-6">
+                      <div className="text-center text-slate-500">History Log</div>
+                      {/* Simplified history to save rendering power on mobile */}
+                      <Card className="p-4">
+                         <h3 className="font-bold text-blue-600 mb-2">Freysi History</h3>
+                         <div className="max-h-60 overflow-y-auto divide-y">
+                            {[...userWeights].reverse().map((e,i) => (
+                               <div key={i} className="flex justify-between py-2"><span className="text-sm text-slate-500">{e.date}</span><span className="font-bold">{e.weight} kg</span></div>
+                            ))}
+                         </div>
+                      </Card>
+                      <Card className="p-4">
+                         <h3 className="font-bold text-rose-600 mb-2">Anni History</h3>
+                         <div className="max-h-60 overflow-y-auto divide-y">
+                            {[...anniWeights].reverse().map((e,i) => (
+                               <div key={i} className="flex justify-between py-2"><span className="text-sm text-slate-500">{e.date}</span><span className="font-bold">{e.weight} kg</span></div>
+                            ))}
+                         </div>
+                      </Card>
+                   </div>
                 )}
 
                 {activeTab === 'settings' && (
                   <Card className="p-6 space-y-8">
-                    <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2"><Settings size={20} /> Competition Parameters</h3><Button onClick={saveSettings} className="bg-green-600 hover:bg-green-700 shadow-green-500/20">Save Changes</Button></div>
+                    <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2"><Settings size={20} /> Settings</h3><Button onClick={saveSettings} className="bg-green-600 hover:bg-green-700 shadow-green-500/20">Save</Button></div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4"><h4 className="font-medium text-blue-600">Freysi's Goals</h4><div className="space-y-2"><label className="text-sm text-slate-500">Starting Weight</label><Input type="number" value={userStartWeight} onChange={(e) => setUserStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Target Gain (kg)</label><Input type="number" value={userGoalGain} onChange={(e) => setUserGoalGain(parseFloat(e.target.value))} /></div></div>
-                        <div className="space-y-4"><h4 className="font-medium text-rose-500">Anni's Goals</h4><div className="space-y-2"><label className="text-sm text-slate-500">Starting Weight</label><Input type="number" value={anniStartWeight} onChange={(e) => setAnniStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Target Loss (kg)</label><Input type="number" value={anniGoalLoss} onChange={(e) => setAnniGoalLoss(parseFloat(e.target.value))} /></div></div>
+                        <div className="space-y-4"><h4 className="font-medium text-blue-600">Freysi</h4><div className="space-y-2"><label className="text-sm text-slate-500">Start</label><Input type="number" value={userStartWeight} onChange={(e) => setUserStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Goal Gain</label><Input type="number" value={userGoalGain} onChange={(e) => setUserGoalGain(parseFloat(e.target.value))} /></div></div>
+                        <div className="space-y-4"><h4 className="font-medium text-rose-500">Anni</h4><div className="space-y-2"><label className="text-sm text-slate-500">Start</label><Input type="number" value={anniStartWeight} onChange={(e) => setAnniStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Goal Loss</label><Input type="number" value={anniGoalLoss} onChange={(e) => setAnniGoalLoss(parseFloat(e.target.value))} /></div></div>
                     </div>
                   </Card>
                 )}
@@ -505,7 +462,7 @@ measurementId: "G-ELR1FNN9VG"
               </div>
 
               {/* Mobile Navigation Bar */}
-              <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-2 z-50 md:hidden">
+              <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-2 z-50 md:hidden safe-area-pb">
                 <div className="flex justify-around items-center">
                   <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'dashboard' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><TrendingUp size={24} /><span className="text-xs mt-1">Dash</span></button>
                   <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'history' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><Calendar size={24} /><span className="text-xs mt-1">History</span></button>
@@ -520,12 +477,9 @@ measurementId: "G-ELR1FNN9VG"
         const root = createRoot(document.getElementById('root'));
         root.render(<CompetitionApp />);
 
-        // Register Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => console.log('SW registered: ', registration))
-                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
+                navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW fail: ', e));
             });
         }
     </script>
