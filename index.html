@@ -5,58 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GlowUp 2026</title>
     
-    <!-- PWA Settings -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-        #error-box { display: none; position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: #fee2e2; color: #991b1b; border-bottom: 4px solid #ef4444; font-family: monospace; z-index: 9999; }
+        /* Debug Console Styles */
+        #debug-console { 
+            display: block; 
+            background: #000; 
+            color: #0f0; 
+            font-family: monospace; 
+            font-size: 10px; 
+            padding: 10px; 
+            margin-top: 20px;
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            border-top: 2px solid #333;
+            min-height: 100px;
+        }
     </style>
 
-    <!-- CRITICAL FIX: IMPORT MAP -->
-    <!-- This tells the browser exactly where "react" is located -->
     <script type="importmap">
     {
       "imports": {
         "react": "https://esm.sh/react@18.2.0",
         "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1?deps=react@18.2.0",
         "recharts": "https://esm.sh/recharts@2.12.0?deps=react@18.2.0,react-dom@18.2.0"
       }
     }
     </script>
 
-    <!-- Polyfill for process.env -->
     <script>
+        // 1. Polyfill process.env
         window.process = { env: { NODE_ENV: 'production' } };
+
+        // 2. ON-SCREEN LOGGER (So we can see errors on the phone)
+        window.logToScreen = function(message, type = 'log') {
+            const consoleDiv = document.getElementById('debug-console');
+            if (consoleDiv) {
+                const line = document.createElement('div');
+                line.style.color = type === 'error' ? '#ff5555' : '#00ff00';
+                line.style.marginBottom = '4px';
+                line.style.borderBottom = '1px solid #333';
+                line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                consoleDiv.appendChild(line);
+            }
+        };
+
+        // Capture Global Errors
         window.onerror = function(msg, url, lineNo, columnNo, error) {
-            const errorBox = document.getElementById('error-box');
-            errorBox.style.display = 'block';
-            errorBox.innerHTML = `<strong>App Crash:</strong><br>${msg}<br><small>${url}:${lineNo}</small>`;
+            window.logToScreen(`CRITICAL: ${msg} (${url}:${lineNo})`, 'error');
             return false;
         };
+
+        // Capture Promise Errors (Async)
+        window.addEventListener('unhandledrejection', function(event) {
+            window.logToScreen(`UNHANDLED PROMISE: ${event.reason}`, 'error');
+        });
+
+        // Redirect console.log/error to screen
+        const oldLog = console.log;
+        const oldError = console.error;
+        console.log = function(...args) { oldLog(...args); window.logToScreen(args.join(' ')); };
+        console.error = function(...args) { oldError(...args); window.logToScreen(args.join(' '), 'error'); };
     </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
     
-    <div id="error-box"></div>
     <div id="root"></div>
+    
+    <!-- The Debug Console Area -->
+    <div id="debug-console">
+        <div>System Init... v2.1</div>
+    </div>
 
     <script type="text/babel" data-type="module">
-        // Now we can use clean imports because of the Import Map
         import React, { useState, useEffect, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
         
+        console.log("React Imports Loaded.");
+
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
           Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff, AlertTriangle
@@ -67,12 +103,14 @@
           ResponsiveContainer, ReferenceLine, Legend 
         } from 'recharts';
 
-        // Firebase Imports (Direct URLs are still best for these)
+        console.log("UI Libraries Loaded.");
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // *** YOUR FIREBASE CONFIG (PRE-FILLED) ***
+        console.log("Firebase Libraries Loaded.");
+
         const firebaseConfig = {
             apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
             authDomain: "glowup-2026.firebaseapp.com",
@@ -88,48 +126,27 @@
         const db = getFirestore(app);
 
         // --- Components ---
-
         const Card = ({ children, className = "" }) => (
-          <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 ${className}`}>
-            {children}
-          </div>
+          <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 ${className}`}>{children}</div>
         );
 
         const Button = ({ children, onClick, variant = "primary", className = "", disabled = false }) => {
-          const baseStyle = "px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 active:scale-95";
-          const variants = {
-            primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed",
-            secondary: "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 disabled:opacity-50",
-            ghost: "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          };
-          return (
-            <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
-              {children}
-            </button>
-          );
+            let colors = variant === "primary" ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200";
+            return <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-lg ${colors} ${className}`}>{children}</button>;
         };
 
-        const Input = ({ type = "text", value, onChange, placeholder, className = "" }) => (
-          <input
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all ${className}`}
-          />
+        const Input = (props) => (
+            <input {...props} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg" />
         );
 
-        const ProgressBar = ({ value, colorClass = "bg-blue-500", label }) => (
+        const ProgressBar = ({ value, colorClass, label }) => (
           <div className="w-full">
             <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium text-slate-600 dark:text-slate-400">{label}</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">{value.toFixed(1)}%</span>
+              <span>{label}</span>
+              <span className="font-bold">{value.toFixed(1)}%</span>
             </div>
-            <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${colorClass} transition-all duration-500 ease-out`} 
-                style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-              />
+            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full ${colorClass}`} style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }} />
             </div>
           </div>
         );
@@ -140,22 +157,16 @@
           static getDerivedStateFromError(error) { return { hasError: true, error }; }
           render() {
             if (this.state.hasError) {
-              return (
-                <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
-                  <AlertTriangle size={48} className="text-red-500 mb-4" />
-                  <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
-                  <pre className="text-xs bg-black/50 p-4 rounded text-left overflow-auto max-w-full">{this.state.error.toString()}</pre>
-                  <button onClick={() => window.location.reload()} className="mt-8 bg-blue-600 px-6 py-2 rounded-lg">Reload App</button>
-                </div>
-              );
+              console.error("React Error Boundary Caught:", this.state.error);
+              return <div className="p-4 text-red-500">React Crash: {this.state.error.toString()}</div>;
             }
             return this.props.children; 
           }
         }
 
-        // --- Main App Logic ---
-
+        // --- Main App ---
         function CompetitionApp() {
+          console.log("Rendering App Component...");
           const [activeTab, setActiveTab] = useState('dashboard');
           const [user, setUser] = useState(null);
           const [loading, setLoading] = useState(true);
@@ -174,17 +185,24 @@
           const [newWeightAnni, setNewWeightAnni] = useState('');
           const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
-          // Auth
           useEffect(() => {
-            signInAnonymously(auth).catch(err => setSyncStatus('error'));
-            return onAuthStateChanged(auth, u => setUser(u));
+            console.log("Starting Auth...");
+            signInAnonymously(auth)
+                .then(() => console.log("Auth Success"))
+                .catch(err => console.error("Auth Fail", err));
+                
+            return onAuthStateChanged(auth, u => {
+                console.log("Auth State Changed:", u ? "Logged In" : "Logged Out");
+                setUser(u);
+            });
           }, []);
 
-          // Sync
           useEffect(() => {
             if (!user) return;
+            console.log("Starting Sync...");
             const docRef = doc(db, 'competition_data', 'shared_state');
             const unsubscribe = onSnapshot(docRef, (docSnap) => {
+              console.log("Snapshot Received. Exists:", docSnap.exists());
               setLoading(false);
               if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -203,9 +221,8 @@
                   userStartWeight: 70.8, userGoalGain: 4.0, userWeights: [{ date: '2026-02-18', weight: 70.8 }],
                   anniStartWeight: 73.0, anniGoalLoss: 6.0, anniWeights: [{ date: '2026-02-18', weight: 73.0 }]
                 });
-                setLoading(false);
               }
-            }, (err) => { console.error(err); setSyncStatus('error'); setLoading(false); });
+            }, (err) => { console.error("Sync Error", err); setSyncStatus('error'); setLoading(false); });
             return () => unsubscribe();
           }, [user]);
 
@@ -216,7 +233,6 @@
             setSyncStatus('synced');
           };
 
-          // Calculations
           const currentUserWeight = userWeights.length > 0 ? userWeights[userWeights.length - 1].weight : userStartWeight;
           const currentAnniWeight = anniWeights.length > 0 ? anniWeights[anniWeights.length - 1].weight : anniStartWeight;
           const userGain = currentUserWeight - userStartWeight;
@@ -286,10 +302,12 @@
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
                 <div className="animate-pulse flex flex-col items-center gap-4 text-slate-400">
                     <CloudLightning size={48} />
-                    <p>Syncing Competition Data...</p>
+                    <p>Syncing...</p>
                 </div>
             </div>
           );
+
+          console.log("Rendering Dashboard. Loading:", loading);
 
           return (
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-24">
@@ -392,11 +410,18 @@
         const root = createRoot(document.getElementById('root'));
         root.render(<ErrorBoundary><CompetitionApp /></ErrorBoundary>);
         
-        // SAFE SERVICE WORKER REGISTRATION
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW fail: ', e));
-            });
+        // --- SAFE SERVICE WORKER REGISTRATION (Prevents the crash) ---
+        // We check if we are on a valid http/https page first.
+        if ('serviceWorker' in navigator) {
+            if (window.location.protocol.startsWith('http')) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => console.log("SW Registered", reg))
+                        .catch(e => console.error("SW Failed", e));
+                });
+            } else {
+                console.log("Skipping SW registration (not http/https)");
+            }
         }
     </script>
 </body>
