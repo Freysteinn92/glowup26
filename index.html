@@ -20,50 +20,59 @@
 
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-        /* Error Box Style - High Z-Index to ensure visibility */
         #error-box { display: none; position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: #fee2e2; color: #991b1b; border-bottom: 4px solid #ef4444; font-family: monospace; z-index: 9999; }
     </style>
 
-    <!-- CRITICAL FIX: Polyfill for process.env -->
+    <!-- CRITICAL FIX: IMPORT MAP -->
+    <!-- This tells the browser exactly where "react" is located -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+        "recharts": "https://esm.sh/recharts@2.12.0?deps=react@18.2.0,react-dom@18.2.0"
+      }
+    }
+    </script>
+
+    <!-- Polyfill for process.env -->
     <script>
         window.process = { env: { NODE_ENV: 'production' } };
-        
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             const errorBox = document.getElementById('error-box');
             errorBox.style.display = 'block';
-            errorBox.innerHTML = `<strong>Global Crash:</strong><br>${msg}<br><small>${url}:${lineNo}</small>`;
+            errorBox.innerHTML = `<strong>App Crash:</strong><br>${msg}<br><small>${url}:${lineNo}</small>`;
             return false;
         };
     </script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     
-    <!-- The Error Container -->
     <div id="error-box"></div>
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        // 1. Load React and DOM
-        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        // Now we can use clean imports because of the Import Map
+        import React, { useState, useEffect, useMemo } from 'react';
+        import { createRoot } from 'react-dom/client';
         
-        // 2. Load Libraries with EXTERNAL flags (Prevents the crash)
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
           Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff, AlertTriangle
-        } from 'https://esm.sh/lucide-react@0.330.0?external=react';
+        } from 'lucide-react';
         
         import { 
           LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
           ResponsiveContainer, ReferenceLine, Legend 
-        } from 'https://esm.sh/recharts@2.12.0?external=react,react-dom';
+        } from 'recharts';
 
-        // 3. Firebase Imports
+        // Firebase Imports (Direct URLs are still best for these)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // *** PASTE YOUR FIREBASE CONFIG HERE ***
+        // *** YOUR FIREBASE CONFIG (PRE-FILLED) ***
         const firebaseConfig = {
             apiKey: "AIzaSyDZXt9MySElLXIJ4hGj3Mn7ryf9XjYicto",
             authDomain: "glowup-2026.firebaseapp.com",
@@ -74,7 +83,6 @@
             measurementId: "G-ELR1FNN9VG"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -92,7 +100,6 @@
           const variants = {
             primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed",
             secondary: "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 disabled:opacity-50",
-            danger: "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-900",
             ghost: "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
           };
           return (
@@ -127,29 +134,18 @@
           </div>
         );
 
-        // --- Error Boundary Component ---
+        // --- Error Boundary ---
         class ErrorBoundary extends React.Component {
-          constructor(props) {
-            super(props);
-            this.state = { hasError: false, error: null };
-          }
-
-          static getDerivedStateFromError(error) {
-            return { hasError: true, error };
-          }
-
+          constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+          static getDerivedStateFromError(error) { return { hasError: true, error }; }
           render() {
             if (this.state.hasError) {
               return (
                 <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
                   <AlertTriangle size={48} className="text-red-500 mb-4" />
                   <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
-                  <pre className="text-xs bg-black/50 p-4 rounded text-left overflow-auto max-w-full">
-                    {this.state.error.toString()}
-                  </pre>
-                  <button onClick={() => window.location.reload()} className="mt-8 bg-blue-600 px-6 py-2 rounded-lg">
-                    Reload App
-                  </button>
+                  <pre className="text-xs bg-black/50 p-4 rounded text-left overflow-auto max-w-full">{this.state.error.toString()}</pre>
+                  <button onClick={() => window.location.reload()} className="mt-8 bg-blue-600 px-6 py-2 rounded-lg">Reload App</button>
                 </div>
               );
             }
@@ -157,7 +153,7 @@
           }
         }
 
-        // --- Main Application ---
+        // --- Main App Logic ---
 
         function CompetitionApp() {
           const [activeTab, setActiveTab] = useState('dashboard');
@@ -165,47 +161,31 @@
           const [loading, setLoading] = useState(true);
           const [syncStatus, setSyncStatus] = useState('connecting');
 
-          // --- Shared Data State ---
+          // Data State
           const [startDate, setStartDate] = useState('2026-02-18');
           const [endDate, setEndDate] = useState('2026-04-30');
-          
           const [userStartWeight, setUserStartWeight] = useState(70.8);
           const [userGoalGain, setUserGoalGain] = useState(4.0);
           const [userWeights, setUserWeights] = useState([{ date: '2026-02-18', weight: 70.8 }]);
-          
           const [anniStartWeight, setAnniStartWeight] = useState(73.0);
           const [anniGoalLoss, setAnniGoalLoss] = useState(6.0);
           const [anniWeights, setAnniWeights] = useState([{ date: '2026-02-18', weight: 73.0 }]);
-
           const [newWeightMe, setNewWeightMe] = useState('');
           const [newWeightAnni, setNewWeightAnni] = useState('');
           const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
           // Auth
           useEffect(() => {
-            const initAuth = async () => {
-              try {
-                await signInAnonymously(auth);
-              } catch (err) {
-                console.error("Auth error", err);
-                setSyncStatus('error');
-              }
-            };
-            initAuth();
-            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-              setUser(currentUser);
-            });
-            return () => unsubscribe();
+            signInAnonymously(auth).catch(err => setSyncStatus('error'));
+            return onAuthStateChanged(auth, u => setUser(u));
           }, []);
 
-          // Data Sync
+          // Sync
           useEffect(() => {
             if (!user) return;
-
             const docRef = doc(db, 'competition_data', 'shared_state');
-
             const unsubscribe = onSnapshot(docRef, (docSnap) => {
-              setLoading(false); 
+              setLoading(false);
               if (docSnap.exists()) {
                 const data = docSnap.data();
                 if(data.startDate) setStartDate(data.startDate);
@@ -218,42 +198,25 @@
                 if(data.anniWeights) setAnniWeights(data.anniWeights);
                 setSyncStatus('synced');
               } else {
-                const defaultData = {
-                  startDate: '2026-02-18',
-                  endDate: '2026-04-30',
-                  userStartWeight: 70.8,
-                  userGoalGain: 4.0,
-                  userWeights: [{ date: '2026-02-18', weight: 70.8 }],
-                  anniStartWeight: 73.0,
-                  anniGoalLoss: 6.0,
-                  anniWeights: [{ date: '2026-02-18', weight: 73.0 }]
-                };
-                setDoc(docRef, defaultData);
+                setDoc(docRef, {
+                  startDate: '2026-02-18', endDate: '2026-04-30',
+                  userStartWeight: 70.8, userGoalGain: 4.0, userWeights: [{ date: '2026-02-18', weight: 70.8 }],
+                  anniStartWeight: 73.0, anniGoalLoss: 6.0, anniWeights: [{ date: '2026-02-18', weight: 73.0 }]
+                });
                 setLoading(false);
               }
-            }, (error) => {
-              console.error("Sync error:", error);
-              setSyncStatus('error');
-              setLoading(false);
-            });
-
+            }, (err) => { console.error(err); setSyncStatus('error'); setLoading(false); });
             return () => unsubscribe();
           }, [user]);
 
           const updateRemoteData = async (updates) => {
             if (!user) return;
             setSyncStatus('connecting');
-            try {
-              const docRef = doc(db, 'competition_data', 'shared_state');
-              await setDoc(docRef, updates, { merge: true });
-              setSyncStatus('synced');
-            } catch (err) {
-              console.error("Update error", err);
-              setSyncStatus('error');
-            }
+            await setDoc(doc(db, 'competition_data', 'shared_state'), updates, { merge: true });
+            setSyncStatus('synced');
           };
 
-          // Safe Calculations
+          // Calculations
           const currentUserWeight = userWeights.length > 0 ? userWeights[userWeights.length - 1].weight : userStartWeight;
           const currentAnniWeight = anniWeights.length > 0 ? anniWeights[anniWeights.length - 1].weight : anniStartWeight;
           const userGain = currentUserWeight - userStartWeight;
@@ -264,38 +227,26 @@
           let leader = 'Tie';
           if(userProgressPercent > anniProgressPercent) leader = 'Freysi';
           if(anniProgressPercent > userProgressPercent) leader = 'Anni';
-          
           const leadAmount = Math.abs(userProgressPercent - anniProgressPercent).toFixed(1);
-          
+
           const daysLeft = useMemo(() => {
-            try {
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                const today = new Date();
-                const remaining = end - today;
-                return Math.ceil(remaining / (1000 * 60 * 60 * 24));
-            } catch(e) { return 0; }
-          }, [startDate, endDate]);
+            try { return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24)); } catch(e) { return 0; }
+          }, [endDate]);
 
           const chartData = useMemo(() => {
             if(!userWeights || !anniWeights) return [];
             const allDates = new Set([...userWeights.map(d => d.date), ...anniWeights.map(d => d.date)]);
             const sortedDates = Array.from(allDates).sort();
-            let lastUserW = userStartWeight;
-            let lastAnniW = anniStartWeight;
+            let lastUserW = userStartWeight, lastAnniW = anniStartWeight;
             return sortedDates.map(date => {
-              const userEntry = userWeights.find(w => w.date === date);
-              const anniEntry = anniWeights.find(w => w.date === date);
-              if (userEntry) lastUserW = userEntry.weight;
-              if (anniEntry) lastAnniW = anniEntry.weight;
-              const userScore = ((lastUserW - userStartWeight) / userGoalGain) * 100;
-              const anniScore = ((anniStartWeight - lastAnniW) / anniGoalLoss) * 100;
+              const u = userWeights.find(w => w.date === date);
+              const a = anniWeights.find(w => w.date === date);
+              if (u) lastUserW = u.weight;
+              if (a) lastAnniW = a.weight;
               return {
                 date: date.slice(5),
-                userWeight: lastUserW,
-                anniWeight: lastAnniW,
-                userScore: userScore,
-                anniScore: anniScore
+                userScore: ((lastUserW - userStartWeight) / userGoalGain) * 100,
+                anniScore: ((anniStartWeight - lastAnniW) / anniGoalLoss) * 100
               };
             });
           }, [userWeights, anniWeights, userStartWeight, anniStartWeight, userGoalGain, anniGoalLoss]);
@@ -306,39 +257,29 @@
               if (!newWeightMe) return;
               const newEntry = { date, weight: parseFloat(newWeightMe) };
               const exists = userWeights.find(w => w.date === date);
-              let newWeights = exists 
-                 ? userWeights.map(w => w.date === date ? newEntry : w)
-                 : [...userWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
+              let newWeights = exists ? userWeights.map(w => w.date === date ? newEntry : w) : [...userWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
               updateRemoteData({ userWeights: newWeights });
               setNewWeightMe('');
             } else {
               if (!newWeightAnni) return;
               const newEntry = { date, weight: parseFloat(newWeightAnni) };
               const exists = anniWeights.find(w => w.date === date);
-              let newWeights = exists
-                 ? anniWeights.map(w => w.date === date ? newEntry : w)
-                 : [...anniWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
+              let newWeights = exists ? anniWeights.map(w => w.date === date ? newEntry : w) : [...anniWeights, newEntry].sort((a,b) => new Date(a.date) - new Date(b.date));
               updateRemoteData({ anniWeights: newWeights });
               setNewWeightAnni('');
             }
           };
 
           const deleteEntry = (person, index) => {
-            if (person === 'me') {
-              if (userWeights.length <= 1) return;
-              const newWeights = [...userWeights];
-              newWeights.splice(index, 1);
-              updateRemoteData({ userWeights: newWeights });
-            } else {
-              if (anniWeights.length <= 1) return;
-              const newWeights = [...anniWeights];
-              newWeights.splice(index, 1);
-              updateRemoteData({ anniWeights: newWeights });
-            }
+             if (person === 'me') {
+                const nw = [...userWeights]; nw.splice(index, 1); updateRemoteData({ userWeights: nw });
+             } else {
+                const nw = [...anniWeights]; nw.splice(index, 1); updateRemoteData({ anniWeights: nw });
+             }
           };
           
           const saveSettings = () => {
-            updateRemoteData({ startDate, endDate, userStartWeight, userGoalGain, anniStartWeight, anniGoalLoss });
+             updateRemoteData({ startDate, endDate, userStartWeight, userGoalGain, anniStartWeight, anniGoalLoss });
           };
 
           if (loading) return (
@@ -356,18 +297,10 @@
                 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">
-                      GlowUp 2026
-                    </h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">GlowUp 2026</h1>
                     <div className="flex items-center gap-3 mt-1">
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">
-                        Competition ends April 30 • {daysLeft > 0 ? `${daysLeft} days left` : 'Competition Ended'}
-                        </p>
-                        {syncStatus === 'synced' ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full"><Wifi size={12} /> Live</span>
-                        ) : (
-                            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"><WifiOff size={12} /> Syncing...</span>
-                        )}
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">{daysLeft} days left</p>
+                        {syncStatus === 'synced' ? <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Live</span> : <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Syncing...</span>}
                     </div>
                   </div>
                 </div>
@@ -376,56 +309,37 @@
                   <div className="space-y-6">
                     <Card className="p-6 relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-rose-500" />
-                      <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-lg"><Trophy size={24} /></div>
-                          <div>
-                            <div className="text-sm text-slate-500 uppercase tracking-wider font-semibold">Current Leader</div>
-                            <div className="text-2xl font-bold flex items-center gap-2">
-                              {leader === 'Tie' ? 'It\'s a Tie!' : `${leader}`}
-                              {leader !== 'Tie' && <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">+{leadAmount}% lead</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <div className="flex items-center gap-3 mb-8"><Trophy size={24} className="text-yellow-500" /><div><div className="text-sm text-slate-500 uppercase font-semibold">Current Leader</div><div className="text-2xl font-bold">{leader} (+{leadAmount}%)</div></div></div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 z-10">VS</div>
                         <div className="space-y-4">
-                          <div className="flex justify-between items-baseline"><h3 className="font-bold text-lg text-blue-600 flex items-center gap-2"><TrendingUp size={20} /> Freysi (Bulk)</h3><span className="text-2xl font-bold">{currentUserWeight} <span className="text-sm text-slate-500">kg</span></span></div>
+                          <div className="flex justify-between"><h3 className="font-bold text-blue-600">Freysi (Bulk)</h3><span className="font-bold">{currentUserWeight} kg</span></div>
                           <ProgressBar value={userProgressPercent} colorClass="bg-blue-500" label={`Progress to +${userGoalGain}kg`} />
                         </div>
                         <div className="space-y-4">
-                          <div className="flex justify-between items-baseline"><h3 className="font-bold text-lg text-rose-500 flex items-center gap-2"><TrendingDown size={20} /> Anni (Cut)</h3><span className="text-2xl font-bold">{currentAnniWeight} <span className="text-sm text-slate-500">kg</span></span></div>
+                          <div className="flex justify-between"><h3 className="font-bold text-rose-500">Anni (Cut)</h3><span className="font-bold">{currentAnniWeight} kg</span></div>
                           <ProgressBar value={anniProgressPercent} colorClass="bg-rose-500" label={`Progress to -${anniGoalLoss}kg`} />
                         </div>
                       </div>
                     </Card>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="p-4"><h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Freysi</h4><div className="flex gap-2"><Input type="number" placeholder="71.2" value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} /><Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe}><Plus size={18} /></Button></div></Card>
-                      <Card className="p-4"><h4 className="font-medium mb-3 text-sm text-slate-500 uppercase tracking-wide">Update Anni</h4><div className="flex gap-2"><Input type="number" placeholder="72.5" value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} /><Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" disabled={!newWeightAnni}><Plus size={18} /></Button></div></Card>
+                      <Card className="p-4"><h4 className="font-medium mb-2 text-sm text-slate-500">Update Freysi</h4><div className="flex gap-2"><Input type="number" placeholder="71.2" value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} /><Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe}><Plus size={18} /></Button></div></Card>
+                      <Card className="p-4"><h4 className="font-medium mb-2 text-sm text-slate-500">Update Anni</h4><div className="flex gap-2"><Input type="number" placeholder="72.5" value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} /><Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500" disabled={!newWeightAnni}><Plus size={18} /></Button></div></Card>
                     </div>
-                     <div className="flex justify-center">
-                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-lg text-sm text-slate-500">
-                           <Calendar size={16} />
-                           <span>Entry Date:</span>
-                           <input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="bg-transparent border-none outline-none focus:ring-0 text-slate-800 dark:text-slate-200 cursor-pointer" />
-                        </div>
-                     </div>
+                     <div className="flex justify-center items-center gap-2 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-lg text-sm"><Calendar size={16} /><input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="bg-transparent outline-none" /></div>
 
                     <Card className="p-6 h-80">
-                      <h3 className="font-bold mb-4 flex items-center gap-2"><Target size={18} className="text-purple-500" />Competition Race (%)</h3>
+                      <h3 className="font-bold mb-4 flex items-center gap-2"><Target size={18} /> Race (%)</h3>
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                           <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} unit="%" />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Tooltip />
                           <Legend />
-                          <ReferenceLine y={100} stroke="#cbd5e1" strokeDasharray="3 3" />
-                          <Line type="monotone" dataKey="userScore" name="Freysi" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
-                          <Line type="monotone" dataKey="anniScore" name="Anni" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4, fill: '#f43f5e' }} activeDot={{ r: 6 }} />
+                          <Line type="monotone" dataKey="userScore" name="Freysi" stroke="#2563eb" strokeWidth={3} dot={{r:4}} />
+                          <Line type="monotone" dataKey="anniScore" name="Anni" stroke="#f43f5e" strokeWidth={3} dot={{r:4}} />
                         </LineChart>
                       </ResponsiveContainer>
                     </Card>
@@ -434,90 +348,51 @@
 
                 {activeTab === 'rewards' && (
                   <div className="space-y-6">
-                     <div className="text-center space-y-2"><h2 className="text-2xl font-bold">What is at stake?</h2><p className="text-slate-500">The winner decides the activity!</p></div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className={`p-6 border-2 transition-all relative overflow-hidden group ${leader === 'Freysi' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-4 ring-blue-500/10' : 'border-transparent opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`}>
-                           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Ticket size={120} /></div>
-                           <div className="relative z-10">
-                              <div className="flex items-center gap-3 mb-4"><div className="p-3 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-200 rounded-xl"><Ticket size={32} /></div>{leader === 'Freysi' && <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">WINNING</span>}</div>
-                              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Man Utd Game</h3>
-                           </div>
+                     <div className="text-center"><h2 className="text-2xl font-bold">Stakes</h2><p className="text-slate-500">Winner decides!</p></div>
+                     <div className="grid grid-cols-1 gap-4">
+                        <Card className={`p-6 border-2 ${leader === 'Freysi' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`}>
+                           <div className="flex items-center gap-4"><div className="p-3 bg-blue-100 rounded-xl"><Ticket size={24} className="text-blue-600"/></div><div><h3 className="font-bold">Man Utd Game</h3><p className="text-sm text-slate-600">Old Trafford Trip</p></div></div>
                         </Card>
-                        <Card className={`p-6 border-2 transition-all relative overflow-hidden group ${leader === 'Anni' ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 ring-4 ring-rose-500/10' : 'border-transparent opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`}>
-                           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Music size={120} /></div>
-                           <div className="relative z-10">
-                              <div className="flex items-center gap-3 mb-4"><div className="p-3 bg-rose-100 dark:bg-rose-800 text-rose-600 dark:text-rose-200 rounded-xl"><Music size={32} /></div>{leader === 'Anni' && <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">WINNING</span>}</div>
-                              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Dance Lessons</h3>
-                           </div>
+                        <Card className={`p-6 border-2 ${leader === 'Anni' ? 'border-rose-500 bg-rose-50' : 'border-transparent'}`}>
+                           <div className="flex items-center gap-4"><div className="p-3 bg-rose-100 rounded-xl"><Music size={24} className="text-rose-600"/></div><div><h3 className="font-bold">Dance Lessons</h3><p className="text-sm text-slate-600">Course Signup</p></div></div>
                         </Card>
                      </div>
                   </div>
                 )}
                 
                 {activeTab === 'history' && (
-                   <div className="space-y-6">
-                      <div className="text-center text-slate-500">History Log</div>
-                      <Card className="p-4">
-                         <h3 className="font-bold text-blue-600 mb-2">Freysi History</h3>
-                         <div className="max-h-60 overflow-y-auto divide-y">
-                            {[...userWeights].reverse().map((e,i) => (
-                               <div key={i} className="flex justify-between py-2"><span className="text-sm text-slate-500">{e.date}</span><span className="font-bold">{e.weight} kg</span></div>
-                            ))}
-                         </div>
-                      </Card>
-                      <Card className="p-4">
-                         <h3 className="font-bold text-rose-600 mb-2">Anni History</h3>
-                         <div className="max-h-60 overflow-y-auto divide-y">
-                            {[...anniWeights].reverse().map((e,i) => (
-                               <div key={i} className="flex justify-between py-2"><span className="text-sm text-slate-500">{e.date}</span><span className="font-bold">{e.weight} kg</span></div>
-                            ))}
-                         </div>
-                      </Card>
+                   <div className="space-y-4">
+                      <Card className="p-4"><h3 className="font-bold text-blue-600 mb-2">Freysi</h3><div className="max-h-60 overflow-y-auto divide-y">{[...userWeights].reverse().map((e,i) => (<div key={i} className="flex justify-between py-2 text-sm"><span>{e.date}</span><span className="font-bold">{e.weight}</span></div>))}</div></Card>
+                      <Card className="p-4"><h3 className="font-bold text-rose-600 mb-2">Anni</h3><div className="max-h-60 overflow-y-auto divide-y">{[...anniWeights].reverse().map((e,i) => (<div key={i} className="flex justify-between py-2 text-sm"><span>{e.date}</span><span className="font-bold">{e.weight}</span></div>))}</div></Card>
                    </div>
                 )}
 
                 {activeTab === 'settings' && (
-                  <Card className="p-6 space-y-8">
-                    <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2"><Settings size={20} /> Settings</h3><Button onClick={saveSettings} className="bg-green-600 hover:bg-green-700 shadow-green-500/20">Save</Button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4"><h4 className="font-medium text-blue-600">Freysi</h4><div className="space-y-2"><label className="text-sm text-slate-500">Start</label><Input type="number" value={userStartWeight} onChange={(e) => setUserStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Goal Gain</label><Input type="number" value={userGoalGain} onChange={(e) => setUserGoalGain(parseFloat(e.target.value))} /></div></div>
-                        <div className="space-y-4"><h4 className="font-medium text-rose-500">Anni</h4><div className="space-y-2"><label className="text-sm text-slate-500">Start</label><Input type="number" value={anniStartWeight} onChange={(e) => setAnniStartWeight(parseFloat(e.target.value))} /></div><div className="space-y-2"><label className="text-sm text-slate-500">Goal Loss</label><Input type="number" value={anniGoalLoss} onChange={(e) => setAnniGoalLoss(parseFloat(e.target.value))} /></div></div>
+                  <Card className="p-6 space-y-4">
+                    <div className="flex justify-between items-center"><h3 className="font-bold">Settings</h3><Button onClick={saveSettings}>Save</Button></div>
+                    <div className="space-y-4">
+                        <h4 className="text-blue-600 font-bold">Freysi</h4><div className="flex gap-2"><Input type="number" value={userStartWeight} onChange={e=>setUserStartWeight(parseFloat(e.target.value))} /><Input type="number" value={userGoalGain} onChange={e=>setUserGoalGain(parseFloat(e.target.value))} /></div>
+                        <h4 className="text-rose-600 font-bold">Anni</h4><div className="flex gap-2"><Input type="number" value={anniStartWeight} onChange={e=>setAnniStartWeight(parseFloat(e.target.value))} /><Input type="number" value={anniGoalLoss} onChange={e=>setAnniGoalLoss(parseFloat(e.target.value))} /></div>
                     </div>
                   </Card>
                 )}
 
               </div>
 
-              {/* Mobile Navigation Bar */}
-              <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-2 z-50 md:hidden safe-area-pb">
-                <div className="flex justify-around items-center">
-                  <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'dashboard' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><TrendingUp size={24} /><span className="text-xs mt-1">Dash</span></button>
-                  <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'history' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><Calendar size={24} /><span className="text-xs mt-1">History</span></button>
-                  <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'rewards' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><Trophy size={24} /><span className="text-xs mt-1">Rewards</span></button>
-                  <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center p-2 rounded-lg ${activeTab === 'settings' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}><Settings size={24} /><span className="text-xs mt-1">Settings</span></button>
-                </div>
-              </div>
-              
-              {/* DEBUG FOOTER */}
-              <div className="fixed bottom-20 left-0 right-0 text-center text-[10px] text-slate-500 opacity-50 pointer-events-none">
-                 Debug: Loaded={!loading ? 'Yes' : 'No'} | User={user ? 'Auth' : 'No'} | Weights={userWeights.length}/{anniWeights.length}
+              {/* Mobile Nav */}
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 z-50 md:hidden flex justify-around">
+                  {['dashboard', 'history', 'rewards', 'settings'].map(t => (
+                      <button key={t} onClick={() => setActiveTab(t)} className={`p-2 capitalize ${activeTab === t ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{t}</button>
+                  ))}
               </div>
             </div>
           );
         }
 
         const root = createRoot(document.getElementById('root'));
-        root.render(
-          <ErrorBoundary>
-            <CompetitionApp />
-          </ErrorBoundary>
-        );
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW fail: ', e));
-            });
-        }
+        root.render(<ErrorBoundary><CompetitionApp /></ErrorBoundary>);
+        
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
     </script>
 </body>
 </html>
