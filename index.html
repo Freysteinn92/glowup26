@@ -6,7 +6,7 @@
     <title>GlowUp 2026</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -16,11 +16,24 @@
 
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-        /* Error Box (Hidden by default, only shows on critical crash) */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* Glassmorphism for Nav */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        @media (prefers-color-scheme: dark) {
+            .glass-nav {
+                background: rgba(15, 23, 42, 0.9);
+                border-top: 1px solid rgba(255,255,255,0.05);
+            }
+        }
+        
         #error-box { display: none; position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: #fee2e2; color: #991b1b; border-bottom: 4px solid #ef4444; font-family: monospace; z-index: 9999; }
     </style>
 
-    <!-- Import Map: Ensures React loads correctly -->
     <script type="importmap">
     {
       "imports": {
@@ -33,10 +46,7 @@
     </script>
 
     <script>
-        // Polyfill process.env for React libraries
         window.process = { env: { NODE_ENV: 'production' } };
-
-        // Global Error Handler (Just in case)
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             const errorBox = document.getElementById('error-box');
             errorBox.style.display = 'block';
@@ -45,7 +55,7 @@
         };
     </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24">
     
     <div id="error-box"></div>
     <div id="root"></div>
@@ -56,7 +66,8 @@
         
         import { 
           TrendingUp, TrendingDown, Trophy, Plus, Trash2, Calendar, 
-          Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff, AlertTriangle
+          Settings, Target, Ticket, Music, CloudLightning, Wifi, WifiOff, 
+          Calculator, ArrowRight
         } from 'lucide-react';
         
         import { 
@@ -84,40 +95,36 @@
 
         // --- Components ---
         const Card = ({ children, className = "" }) => (
-          <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 ${className}`}>{children}</div>
+          <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 ${className}`}>{children}</div>
         );
 
         const Button = ({ children, onClick, variant = "primary", className = "", disabled = false }) => {
-            let colors = variant === "primary" ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200";
-            return <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-lg ${colors} ${className}`}>{children}</button>;
+            const colors = variant === "primary" 
+                ? "bg-blue-600 active:bg-blue-700 text-white shadow-lg shadow-blue-500/20" 
+                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700";
+            return <button onClick={onClick} disabled={disabled} className={`px-4 py-3 rounded-xl font-medium transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 ${colors} ${className}`}>{children}</button>;
         };
 
         const Input = (props) => (
-            <input {...props} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg" />
+            <input {...props} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
         );
 
         const ProgressBar = ({ value, colorClass, label }) => (
           <div className="w-full">
-            <div className="flex justify-between text-sm mb-1">
+            <div className="flex justify-between text-xs font-medium mb-1.5 opacity-80">
               <span>{label}</span>
-              <span className="font-bold">{value.toFixed(1)}%</span>
+              <span>{value.toFixed(1)}%</span>
             </div>
-            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full ${colorClass}`} style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }} />
+            <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className={`h-full ${colorClass} transition-all duration-1000 ease-out`} style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }} />
             </div>
           </div>
         );
 
-        // --- Error Boundary ---
         class ErrorBoundary extends React.Component {
-          constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-          static getDerivedStateFromError(error) { return { hasError: true, error }; }
-          render() {
-            if (this.state.hasError) {
-              return <div className="p-8 text-white bg-red-900"><h1>App Error</h1><p>Please restart the app.</p></div>;
-            }
-            return this.props.children; 
-          }
+          constructor(props) { super(props); this.state = { hasError: false }; }
+          static getDerivedStateFromError(error) { return { hasError: true }; }
+          render() { if (this.state.hasError) return <div className="p-8 text-center"><h1>⚠️ App Error</h1><p>Restart needed.</p></div>; return this.props.children; }
         }
 
         // --- Main App ---
@@ -141,7 +148,7 @@
           const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
           useEffect(() => {
-            signInAnonymously(auth).catch(err => console.error("Auth Fail", err));
+            signInAnonymously(auth).catch(err => console.error(err));
             return onAuthStateChanged(auth, u => setUser(u));
           }, []);
 
@@ -169,7 +176,7 @@
                 });
                 setLoading(false);
               }
-            }, (err) => { console.error("Sync Err", err); setSyncStatus('error'); setLoading(false); });
+            }, (err) => { setSyncStatus('error'); setLoading(false); });
             return () => unsubscribe();
           }, [user]);
 
@@ -180,7 +187,7 @@
             setSyncStatus('synced');
           };
 
-          // Calculations
+          // --- Stats Engine ---
           const currentUserWeight = userWeights.length > 0 ? userWeights[userWeights.length - 1].weight : userStartWeight;
           const currentAnniWeight = anniWeights.length > 0 ? anniWeights[anniWeights.length - 1].weight : anniStartWeight;
           const userGain = currentUserWeight - userStartWeight;
@@ -196,6 +203,27 @@
           const daysLeft = useMemo(() => {
             try { return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24)); } catch(e) { return 0; }
           }, [endDate]);
+
+          // Fun Stats
+          const getWeeklyRate = (weights, startW) => {
+             if(weights.length < 2) return 0;
+             const days = (new Date(weights[weights.length-1].date) - new Date(startDate)) / (1000 * 3600 * 24);
+             if(days <= 0) return 0;
+             const totalChange = Math.abs(weights[weights.length-1].weight - startW);
+             return (totalChange / days) * 7;
+          };
+          
+          const userWeeklyRate = getWeeklyRate(userWeights, userStartWeight);
+          const anniWeeklyRate = getWeeklyRate(anniWeights, anniStartWeight);
+          
+          const projectedUserDate = useMemo(() => {
+             if(userWeeklyRate <= 0) return "Never";
+             const weeksNeeded = (userGoalGain - userGain) / userWeeklyRate;
+             if(weeksNeeded <= 0) return "Done!";
+             const d = new Date();
+             d.setDate(d.getDate() + (weeksNeeded * 7));
+             return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+          }, [userWeeklyRate, userGain, userGoalGain]);
 
           const chartData = useMemo(() => {
             if(!userWeights || !anniWeights) return [];
@@ -247,63 +275,101 @@
           };
 
           if (loading) return (
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center gap-4 text-slate-400">
-                    <CloudLightning size={48} />
-                    <p>Syncing...</p>
-                </div>
+            <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center">
+                <CloudLightning size={48} className="animate-bounce text-blue-500 mb-4" />
+                <p className="font-medium animate-pulse">Syncing Cloud Data...</p>
             </div>
           );
 
           return (
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-24">
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans pb-32">
               <div className="max-w-4xl mx-auto space-y-6">
                 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                {/* Header */}
+                <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-rose-500 bg-clip-text text-transparent flex items-center gap-2">GlowUp 2026</h1>
-                    <div className="flex items-center gap-3 mt-1">
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">{daysLeft} days left</p>
-                        {syncStatus === 'synced' ? <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Live</span> : <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Syncing...</span>}
-                    </div>
+                    <h1 className="text-2xl font-black bg-gradient-to-r from-blue-500 to-rose-500 bg-clip-text text-transparent">GlowUp 2026</h1>
+                    <p className="text-xs text-slate-500 font-medium tracking-wide uppercase mt-1">{daysLeft} DAYS REMAINING</p>
                   </div>
+                  {syncStatus === 'synced' 
+                    ? <div className="bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full p-2"><Wifi size={16} /></div>
+                    : <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-full p-2 animate-pulse"><WifiOff size={16} /></div>
+                  }
                 </div>
 
                 {activeTab === 'dashboard' && (
-                  <div className="space-y-6">
-                    <Card className="p-6 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-rose-500" />
-                      <div className="flex items-center gap-3 mb-8"><Trophy size={24} className="text-yellow-500" /><div><div className="text-sm text-slate-500 uppercase font-semibold">Current Leader</div><div className="text-2xl font-bold">{leader} (+{leadAmount}%)</div></div></div>
+                  <div className="space-y-6 animate-fade-in">
+                    <Card className="p-6 relative overflow-hidden bg-white dark:bg-slate-900">
+                      <div className="flex items-center gap-4 mb-8">
+                          <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 rounded-2xl"><Trophy size={28} /></div>
+                          <div>
+                            <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Current Leader</div>
+                            <div className="text-3xl font-black tracking-tight">{leader} <span className="text-lg font-medium text-slate-400">+{leadAmount}%</span></div>
+                          </div>
+                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                        <div className="space-y-4">
-                          <div className="flex justify-between"><h3 className="font-bold text-blue-600">Freysi (Bulk)</h3><span className="font-bold">{currentUserWeight} kg</span></div>
-                          <ProgressBar value={userProgressPercent} colorClass="bg-blue-500" label={`Progress to +${userGoalGain}kg`} />
+                      <div className="grid grid-cols-2 gap-8 relative">
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-400 border border-slate-200 dark:border-slate-700 z-10">VS</div>
+                        <div className="space-y-3">
+                          <div className="flex flex-col">
+                              <span className="text-xs font-bold text-blue-500 uppercase">Freysi</span>
+                              <span className="text-2xl font-bold tracking-tight">{currentUserWeight} <span className="text-sm text-slate-400 font-normal">kg</span></span>
+                          </div>
+                          <ProgressBar value={userProgressPercent} colorClass="bg-blue-500" label="Gain Goal" />
                         </div>
-                        <div className="space-y-4">
-                          <div className="flex justify-between"><h3 className="font-bold text-rose-500">Anni (Cut)</h3><span className="font-bold">{currentAnniWeight} kg</span></div>
-                          <ProgressBar value={anniProgressPercent} colorClass="bg-rose-500" label={`Progress to -${anniGoalLoss}kg`} />
+                        <div className="space-y-3 text-right">
+                          <div className="flex flex-col items-end">
+                              <span className="text-xs font-bold text-rose-500 uppercase">Anni</span>
+                              <span className="text-2xl font-bold tracking-tight">{currentAnniWeight} <span className="text-sm text-slate-400 font-normal">kg</span></span>
+                          </div>
+                          <div className="dir-rtl">
+                             <ProgressBar value={anniProgressPercent} colorClass="bg-rose-500" label="Loss Goal" />
+                          </div>
                         </div>
+                      </div>
+                      
+                      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between text-xs text-slate-400">
+                         <span>Rate: {userWeeklyRate.toFixed(2)} kg/wk</span>
+                         <span>Proj: {projectedUserDate}</span>
                       </div>
                     </Card>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="p-4"><h4 className="font-medium mb-2 text-sm text-slate-500">Update Freysi</h4><div className="flex gap-2"><Input type="number" placeholder="71.2" value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} /><Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe}><Plus size={18} /></Button></div></Card>
-                      <Card className="p-4"><h4 className="font-medium mb-2 text-sm text-slate-500">Update Anni</h4><div className="flex gap-2"><Input type="number" placeholder="72.5" value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} /><Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500" disabled={!newWeightAnni}><Plus size={18} /></Button></div></Card>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={() => {setNewWeightMe(''); document.getElementById('freysi-input').focus()}} className="bg-blue-600 active:bg-blue-700 text-white p-4 rounded-2xl shadow-lg shadow-blue-500/20 flex flex-col items-center gap-2 transition-transform active:scale-95">
+                          <TrendingUp size={24} />
+                          <span className="font-bold text-sm">Log Bulk</span>
+                      </button>
+                      <button onClick={() => {setNewWeightAnni(''); document.getElementById('anni-input').focus()}} className="bg-rose-500 active:bg-rose-600 text-white p-4 rounded-2xl shadow-lg shadow-rose-500/20 flex flex-col items-center gap-2 transition-transform active:scale-95">
+                          <TrendingDown size={24} />
+                          <span className="font-bold text-sm">Log Cut</span>
+                      </button>
                     </div>
-                     <div className="flex justify-center items-center gap-2 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-lg text-sm"><Calendar size={16} /><input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="bg-transparent outline-none" /></div>
 
-                    <Card className="p-6 h-80">
-                      <h3 className="font-bold mb-4 flex items-center gap-2"><Target size={18} /> Race (%)</h3>
+                    <Card className="p-4 bg-slate-50 dark:bg-slate-900 border-none">
+                       <div className="flex gap-2 items-center mb-4 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                          <Calendar size={16} className="text-slate-400 ml-2" />
+                          <input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="bg-transparent outline-none text-sm w-full" />
+                       </div>
+                       <div className="space-y-3">
+                          <div className="flex gap-2">
+                             <Input id="freysi-input" type="number" placeholder="Freysi Weight..." value={newWeightMe} onChange={(e) => setNewWeightMe(e.target.value)} />
+                             <Button onClick={() => handleAddWeight('me')} disabled={!newWeightMe} className="bg-blue-600"><Plus size={20} /></Button>
+                          </div>
+                          <div className="flex gap-2">
+                             <Input id="anni-input" type="number" placeholder="Anni Weight..." value={newWeightAnni} onChange={(e) => setNewWeightAnni(e.target.value)} />
+                             <Button onClick={() => handleAddWeight('anni')} variant="primary" className="bg-rose-500" disabled={!newWeightAnni}><Plus size={20} /></Button>
+                          </div>
+                       </div>
+                    </Card>
+
+                    <Card className="p-6 h-72">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} unit="%" />
-                          <Tooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="userScore" name="Freysi" stroke="#2563eb" strokeWidth={3} dot={{r:4}} />
-                          <Line type="monotone" dataKey="anniScore" name="Anni" stroke="#f43f5e" strokeWidth={3} dot={{r:4}} />
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                          <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                          <Tooltip contentStyle={{background: '#1e293b', border:'none', borderRadius:'8px', color:'#fff'}} itemStyle={{fontSize:'12px'}} />
+                          <Line type="monotone" dataKey="userScore" stroke="#2563eb" strokeWidth={3} dot={false} activeDot={{r:6}} />
+                          <Line type="monotone" dataKey="anniScore" stroke="#f43f5e" strokeWidth={3} dot={false} activeDot={{r:6}} />
                         </LineChart>
                       </ResponsiveContainer>
                     </Card>
@@ -311,42 +377,153 @@
                 )}
 
                 {activeTab === 'rewards' && (
-                  <div className="space-y-6">
-                     <div className="text-center"><h2 className="text-2xl font-bold">Stakes</h2><p className="text-slate-500">Winner decides!</p></div>
-                     <div className="grid grid-cols-1 gap-4">
-                        <Card className={`p-6 border-2 ${leader === 'Freysi' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`}>
-                           <div className="flex items-center gap-4"><div className="p-3 bg-blue-100 rounded-xl"><Ticket size={24} className="text-blue-600"/></div><div><h3 className="font-bold">Man Utd Game</h3><p className="text-sm text-slate-600">Old Trafford Trip</p></div></div>
+                  <div className="space-y-6 animate-fade-in">
+                     <div className="text-center py-4">
+                        <h2 className="text-3xl font-black mb-2">Grand Prize</h2>
+                        <p className="text-slate-500">The winner takes it all</p>
+                     </div>
+                     
+                     <div className="relative">
+                        <div className={`absolute -inset-1 rounded-2xl blur opacity-30 transition-all duration-1000 ${leader === 'Freysi' ? 'bg-blue-600' : 'bg-rose-600'}`}></div>
+                        <Card className="relative p-6 border-none bg-gradient-to-br from-slate-900 to-slate-800 text-white overflow-hidden">
+                           <div className="relative z-10 flex flex-col h-full justify-between min-h-[160px]">
+                              <div className="flex justify-between items-start">
+                                 <div className={`p-3 rounded-2xl bg-white/10 backdrop-blur-md`}>
+                                    {leader === 'Freysi' ? <Ticket size={32} className="text-blue-400" /> : <Music size={32} className="text-rose-400" />}
+                                 </div>
+                                 <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-bold tracking-wider">
+                                    CURRENTLY WINNING
+                                 </div>
+                              </div>
+                              <div>
+                                 <h3 className="text-2xl font-bold mb-1">{leader === 'Freysi' ? 'Man Utd Game' : 'Dance Lessons'}</h3>
+                                 <p className="text-slate-400 text-sm">{leader === 'Freysi' ? 'Trip to Old Trafford' : 'Couples Dance Course'}</p>
+                              </div>
+                           </div>
+                           {/* Background Pattern */}
+                           <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4">
+                              {leader === 'Freysi' ? <Ticket size={200} /> : <Music size={200} />}
+                           </div>
                         </Card>
-                        <Card className={`p-6 border-2 ${leader === 'Anni' ? 'border-rose-500 bg-rose-50' : 'border-transparent'}`}>
-                           <div className="flex items-center gap-4"><div className="p-3 bg-rose-100 rounded-xl"><Music size={24} className="text-rose-600"/></div><div><h3 className="font-bold">Dance Lessons</h3><p className="text-sm text-slate-600">Course Signup</p></div></div>
+                     </div>
+
+                     <div className="grid grid-cols-1 gap-4 opacity-70 grayscale hover:grayscale-0 transition-all">
+                        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-slate-900">
+                           <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl"><Ticket size={20} className="text-blue-600 dark:text-blue-400"/></div>
+                           <div><h3 className="font-bold text-sm">Freysi's Pick</h3><p className="text-xs text-slate-500">Football Match</p></div>
+                        </Card>
+                        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-slate-900">
+                           <div className="p-3 bg-rose-100 dark:bg-rose-900/30 rounded-xl"><Music size={20} className="text-rose-600 dark:text-rose-400"/></div>
+                           <div><h3 className="font-bold text-sm">Anni's Pick</h3><p className="text-xs text-slate-500">Dance Class</p></div>
                         </Card>
                      </div>
                   </div>
                 )}
                 
                 {activeTab === 'history' && (
-                   <div className="space-y-4">
-                      <Card className="p-4"><h3 className="font-bold text-blue-600 mb-2">Freysi</h3><div className="max-h-60 overflow-y-auto divide-y">{[...userWeights].reverse().map((e,i) => (<div key={i} className="flex justify-between py-2 text-sm"><span>{e.date}</span><span className="font-bold">{e.weight}</span></div>))}</div></Card>
-                      <Card className="p-4"><h3 className="font-bold text-rose-600 mb-2">Anni</h3><div className="max-h-60 overflow-y-auto divide-y">{[...anniWeights].reverse().map((e,i) => (<div key={i} className="flex justify-between py-2 text-sm"><span>{e.date}</span><span className="font-bold">{e.weight}</span></div>))}</div></Card>
+                   <div className="space-y-6 animate-fade-in">
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl text-center">
+                            <div className="text-xs text-blue-600 dark:text-blue-400 uppercase font-bold mb-1">Freysi Rate</div>
+                            <div className="text-xl font-black text-blue-700 dark:text-blue-300">{userWeeklyRate.toFixed(2)} <span className="text-xs font-normal">kg/wk</span></div>
+                         </div>
+                         <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-2xl text-center">
+                            <div className="text-xs text-rose-600 dark:text-rose-400 uppercase font-bold mb-1">Anni Rate</div>
+                            <div className="text-xl font-black text-rose-700 dark:text-rose-300">{Math.abs(anniWeeklyRate).toFixed(2)} <span className="text-xs font-normal">kg/wk</span></div>
+                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-2">Freysi Log</h3>
+                         <Card className="overflow-hidden bg-white dark:bg-slate-900">
+                            <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                               {[...userWeights].reverse().map((e,i) => (
+                                  <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                     <div>
+                                        <div className="text-xs text-slate-400 font-mono mb-0.5">{e.date}</div>
+                                        <div className="font-bold text-lg text-slate-700 dark:text-slate-200">{e.weight} kg</div>
+                                     </div>
+                                     <button onClick={() => deleteEntry('me', userWeights.length - 1 - i)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                                        <Trash2 size={18} />
+                                     </button>
+                                  </div>
+                               ))}
+                            </div>
+                         </Card>
+                      </div>
+
+                      <div className="space-y-2">
+                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-2">Anni Log</h3>
+                         <Card className="overflow-hidden bg-white dark:bg-slate-900">
+                            <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                               {[...anniWeights].reverse().map((e,i) => (
+                                  <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                     <div>
+                                        <div className="text-xs text-slate-400 font-mono mb-0.5">{e.date}</div>
+                                        <div className="font-bold text-lg text-slate-700 dark:text-slate-200">{e.weight} kg</div>
+                                     </div>
+                                     <button onClick={() => deleteEntry('anni', anniWeights.length - 1 - i)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                                        <Trash2 size={18} />
+                                     </button>
+                                  </div>
+                               ))}
+                            </div>
+                         </Card>
+                      </div>
                    </div>
                 )}
 
                 {activeTab === 'settings' && (
-                  <Card className="p-6 space-y-4">
-                    <div className="flex justify-between items-center"><h3 className="font-bold">Settings</h3><Button onClick={saveSettings}>Save</Button></div>
-                    <div className="space-y-4">
-                        <h4 className="text-blue-600 font-bold">Freysi</h4><div className="flex gap-2"><Input type="number" value={userStartWeight} onChange={e=>setUserStartWeight(parseFloat(e.target.value))} /><Input type="number" value={userGoalGain} onChange={e=>setUserGoalGain(parseFloat(e.target.value))} /></div>
-                        <h4 className="text-rose-600 font-bold">Anni</h4><div className="flex gap-2"><Input type="number" value={anniStartWeight} onChange={e=>setAnniStartWeight(parseFloat(e.target.value))} /><Input type="number" value={anniGoalLoss} onChange={e=>setAnniGoalLoss(parseFloat(e.target.value))} /></div>
+                  <Card className="p-6 space-y-6 animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-xl">Competition Settings</h3><Button onClick={saveSettings} className="bg-green-600 shadow-green-500/20">Save Changes</Button></div>
+                    
+                    <div className="space-y-6">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30 space-y-4">
+                            <h4 className="text-blue-600 dark:text-blue-400 font-black uppercase text-xs tracking-wider flex items-center gap-2"><TrendingUp size={14}/> Freysi (Bulk)</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-500">Starting Weight</label>
+                                    <Input type="number" value={userStartWeight} onChange={e=>setUserStartWeight(parseFloat(e.target.value))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-500">Target Gain (kg)</label>
+                                    <Input type="number" value={userGoalGain} onChange={e=>setUserGoalGain(parseFloat(e.target.value))} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-900/30 space-y-4">
+                            <h4 className="text-rose-600 dark:text-rose-400 font-black uppercase text-xs tracking-wider flex items-center gap-2"><TrendingDown size={14}/> Anni (Cut)</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-500">Starting Weight</label>
+                                    <Input type="number" value={anniStartWeight} onChange={e=>setAnniStartWeight(parseFloat(e.target.value))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-500">Target Loss (kg)</label>
+                                    <Input type="number" value={anniGoalLoss} onChange={e=>setAnniGoalLoss(parseFloat(e.target.value))} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                   </Card>
                 )}
 
               </div>
 
-              {/* Mobile Nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 z-50 md:hidden flex justify-around">
+              {/* Floating Bottom Nav */}
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 rounded-2xl shadow-2xl z-50">
                   {['dashboard', 'history', 'rewards', 'settings'].map(t => (
-                      <button key={t} onClick={() => setActiveTab(t)} className={`p-2 capitalize ${activeTab === t ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{t}</button>
+                      <button 
+                        key={t} 
+                        onClick={() => setActiveTab(t)} 
+                        className={`p-3.5 rounded-xl transition-all duration-300 ${activeTab === t ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-110 shadow-lg' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {t === 'dashboard' && <TrendingUp size={24} />}
+                        {t === 'history' && <Calendar size={24} />}
+                        {t === 'rewards' && <Trophy size={24} />}
+                        {t === 'settings' && <Settings size={24} />}
+                      </button>
                   ))}
               </div>
             </div>
@@ -357,14 +534,10 @@
         root.render(<ErrorBoundary><CompetitionApp /></ErrorBoundary>);
         
         if ('serviceWorker' in navigator) {
-            // Fix: Check for http/https to avoid invalid protocol error in preview
             if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
                 try {
                     navigator.serviceWorker.register('./sw.js').then(reg => {
-                        // Force update if one is waiting
-                        if(reg.waiting) {
-                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                        }
+                        if(reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }).catch(e => console.error("SW Fail:", e));
                 } catch(e) { console.log("SW Skipped in preview"); }
             }
